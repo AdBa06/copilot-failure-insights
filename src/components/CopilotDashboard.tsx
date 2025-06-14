@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,7 +10,8 @@ import { TrendChart } from './TrendChart';
 import { ExportPanel } from './ExportPanel';
 import { generateMockData, processFailureClusters } from '../utils/dataProcessor';
 import { FailureLog, ProcessedCluster } from '../types/copilot';
-import { AlertTriangle, TrendingUp, Database, Download } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Database, Download, RefreshCw, Filter, Settings, AlertCircle, CheckCircle, Layers } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 const CopilotDashboard = () => {
   const [failureLogs, setFailureLogs] = useState<FailureLog[]>([]);
@@ -41,136 +41,118 @@ const CopilotDashboard = () => {
   const criticalClusters = clusters.filter(c => c.severity === 'critical').length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="bg-white rounded-lg shadow-sm border p-6">
-          <div className="flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-[#f0f7ff] to-[#e6f2ff]">
+      <div className="container mx-auto px-4 py-8">
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6 mb-8">
+          <div className="flex justify-between items-center mb-6">
             <div>
-              <h1 className="text-3xl font-bold text-slate-900 mb-2">
-                Microsoft Entra Copilot Failure Analysis
-              </h1>
-              <p className="text-slate-600">
-                Intelligent clustering and root cause analysis for Copilot performance optimization
-              </p>
+              <h1 className="text-3xl font-semibold text-[#0078d4]">EntraLens</h1>
+              <p className="text-[#616161] mt-1">Failure Analysis Dashboard</p>
             </div>
-            <div className="flex items-center gap-4">
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="w-32">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1d">Last 24h</SelectItem>
-                  <SelectItem value="7d">Last 7 days</SelectItem>
-                  <SelectItem value="30d">Last 30 days</SelectItem>
-                </SelectContent>
-              </Select>
-              <Select value={rootCauseFilter} onValueChange={setRootCauseFilter}>
-                <SelectTrigger className="w-40">
-                  <SelectValue placeholder="Filter by cause" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Causes</SelectItem>
-                  <SelectItem value="grounding">Grounding Issues</SelectItem>
-                  <SelectItem value="skill">Skill Misuse</SelectItem>
-                  <SelectItem value="api">API Problems</SelectItem>
-                  <SelectItem value="timeout">Timeouts</SelectItem>
-                </SelectContent>
-              </Select>
+            <div className="flex gap-4">
+              <Button variant="outline" className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white">
+                <Download className="w-4 h-4 mr-2" />
+                Export
+              </Button>
+              <Button className="bg-[#0078d4] hover:bg-[#106ebe]">
+                <RefreshCw className="w-4 h-4 mr-2" />
+                Refresh
+              </Button>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+            <div className="bg-gradient-to-br from-[#0078d4]/10 to-[#0078d4]/5 rounded-lg p-4 border border-[#e1e9f2]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#616161]">Total Failures</p>
+                  <h3 className="text-2xl font-semibold text-[#0078d4]">{totalFailures.toLocaleString()}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#0078d4]/10 flex items-center justify-center">
+                  <AlertCircle className="w-5 h-5 text-[#0078d4]" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#107c10]/10 to-[#107c10]/5 rounded-lg p-4 border border-[#e1e9f2]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#616161]">Resolved</p>
+                  <h3 className="text-2xl font-semibold text-[#107c10]">{clusters.filter(c => c.resolved).length}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#107c10]/10 flex items-center justify-center">
+                  <CheckCircle className="w-5 h-5 text-[#107c10]" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#d13438]/10 to-[#d13438]/5 rounded-lg p-4 border border-[#e1e9f2]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#616161]">Critical</p>
+                  <h3 className="text-2xl font-semibold text-[#d13438]">{criticalClusters}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#d13438]/10 flex items-center justify-center">
+                  <AlertTriangle className="w-5 h-5 text-[#d13438]" />
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-gradient-to-br from-[#0078d4]/10 to-[#0078d4]/5 rounded-lg p-4 border border-[#e1e9f2]">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm text-[#616161]">Active Clusters</p>
+                  <h3 className="text-2xl font-semibold text-[#0078d4]">{clusters.length}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-[#0078d4]/10 flex items-center justify-center">
+                  <Layers className="w-5 h-5 text-[#0078d4]" />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6">
+                <div className="flex items-center justify-between mb-4">
+                  <h2 className="text-xl font-semibold text-[#323130]">Failure Clusters</h2>
+                  <div className="flex gap-2">
+                    <Button variant="outline" size="sm" className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white">
+                      <Filter className="w-4 h-4 mr-2" />
+                      Filter
+                    </Button>
+                    <Button variant="outline" size="sm" className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white">
+                      <Settings className="w-4 h-4 mr-2" />
+                      Settings
+                    </Button>
+                  </div>
+                </div>
+                <ClusterOverview 
+                  clusters={filteredClusters}
+                  onClusterSelect={setSelectedCluster}
+                  selectedCluster={selectedCluster}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-6">
+              <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6">
+                <h2 className="text-xl font-semibold text-[#323130] mb-4">Trend Analysis</h2>
+                <TrendChart clusters={clusters} timeRange={timeRange} />
+              </div>
             </div>
           </div>
         </div>
-
-        {/* Key Metrics */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-red-100 text-sm font-medium">Total Failures</p>
-                  <p className="text-2xl font-bold">{totalFailures.toLocaleString()}</p>
-                </div>
-                <AlertTriangle className="h-8 w-8 text-red-100" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-orange-500 to-orange-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-orange-100 text-sm font-medium">Critical Clusters</p>
-                  <p className="text-2xl font-bold">{criticalClusters}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-orange-100" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-blue-100 text-sm font-medium">Affected Skills</p>
-                  <p className="text-2xl font-bold">{uniqueSkills}</p>
-                </div>
-                <Database className="h-8 w-8 text-blue-100" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-green-100 text-sm font-medium">Clusters Found</p>
-                  <p className="text-2xl font-bold">{clusters.length}</p>
-                </div>
-                <Download className="h-8 w-8 text-green-100" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Main Dashboard */}
-        <Tabs defaultValue="overview" className="space-y-6">
-          <TabsList className="bg-white border">
-            <TabsTrigger value="overview">Cluster Overview</TabsTrigger>
-            <TabsTrigger value="drilldown">Detailed Analysis</TabsTrigger>
-            <TabsTrigger value="trends">Trend Analysis</TabsTrigger>
-            <TabsTrigger value="export">Export & Reports</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="overview">
-            <ClusterOverview 
-              clusters={filteredClusters}
-              onClusterSelect={setSelectedCluster}
-              selectedCluster={selectedCluster}
-            />
-          </TabsContent>
-
-          <TabsContent value="drilldown">
-            <DrilldownPanel 
-              cluster={selectedCluster}
-              onBack={() => setSelectedCluster(null)}
-            />
-          </TabsContent>
-
-          <TabsContent value="trends">
-            <TrendChart 
-              clusters={clusters}
-              timeRange={timeRange}
-            />
-          </TabsContent>
-
-          <TabsContent value="export">
-            <ExportPanel 
-              clusters={clusters}
-              failureLogs={failureLogs}
-            />
-          </TabsContent>
-        </Tabs>
       </div>
+
+      <Dialog open={!!selectedCluster} onOpenChange={() => setSelectedCluster(null)}>
+        <DialogContent className="max-w-4xl bg-white/95 backdrop-blur-sm">
+          <DialogHeader>
+            <DialogTitle className="text-[#0078d4]">Cluster Details</DialogTitle>
+          </DialogHeader>
+          {selectedCluster && <DrilldownPanel cluster={selectedCluster} onBack={() => setSelectedCluster(null)} />}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
