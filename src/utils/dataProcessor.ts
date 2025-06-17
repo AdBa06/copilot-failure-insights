@@ -57,7 +57,7 @@ export const generateMockData = (): FailureLog[] => {
 };
 
 // Clustering algorithm (simplified)
-export const processFailureClusters = (logs: FailureLog[]): ProcessedCluster[] => {
+export const processFailureClusters = (logs: FailureLog[], minClusterSize: number = 3): ProcessedCluster[] => {
   const clusters: ProcessedCluster[] = [];
   
   // Group by similar error patterns
@@ -72,7 +72,7 @@ export const processFailureClusters = (logs: FailureLog[]): ProcessedCluster[] =
   });
   
   errorGroups.forEach((groupLogs, key) => {
-    if (groupLogs.length >= 3) { // Only create clusters with multiple occurrences
+    if (groupLogs.length >= minClusterSize) { // Use dynamic threshold
       const cluster = createClusterFromLogs(groupLogs, key);
       clusters.push(cluster);
     }

@@ -1,73 +1,134 @@
-# Welcome to your Lovable project
+# 🔍 EntraLens - Copilot Failure Insights Dashboard
 
-## Project info
+A comprehensive analytics dashboard for analyzing Microsoft Entra Copilot failures and performance insights.
 
-**URL**: https://lovable.dev/projects/dcf7e9bf-4338-4a5b-a60d-65bb34cf9d3f
+## 🚀 Live Demo
 
-## How can I edit this code?
+**[View Live Dashboard](https://your-username.github.io/copilot-failure-insights/)**
 
-There are several ways of editing your application.
+## ✨ Features
 
-**Use Lovable**
+### 📊 **Deep Analytics**
+- **Performance Heatmap**: Skill failure patterns by time of day
+- **User Journey Funnel**: Identify where users drop off in the Copilot process
+- **Impact vs Frequency Matrix**: Prioritize issues by severity and frequency
+- **Detection vs Resolution Time**: Operational efficiency metrics
 
-Simply visit the [Lovable Project](https://lovable.dev/projects/dcf7e9bf-4338-4a5b-a60d-65bb34cf9d3f) and start prompting.
+### 🔧 **Reliability Insights**
+- **Skill Reliability Scorecard**: Rankings and SLA status
+- **Tenant Health Overview**: Multi-tenant performance monitoring
+- **Real-time Filtering**: Dynamic cluster analysis
+- **Smart Settings**: Configurable thresholds and auto-refresh
 
-Changes made via Lovable will be committed automatically to this repo.
+### 📈 **Export Capabilities**
+- **Excel Export**: Multi-sheet workbooks with detailed analytics
+- **PDF Reports**: Executive summaries and dashboards
+- **CSV Data**: Raw data for further analysis
 
-**Use your preferred IDE**
+### 🎛️ **Interactive Controls**
+- **Advanced Filtering**: Severity, root cause, status, and failure count ranges
+- **Dynamic Settings**: Cluster thresholds, auto-refresh intervals
+- **Responsive Design**: Works on desktop, tablet, and mobile
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+## 🛠️ Technology Stack
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+- **Frontend**: React 18 + TypeScript
+- **UI Components**: shadcn/ui + Radix UI
+- **Charts**: Recharts
+- **Styling**: Tailwind CSS
+- **Build Tool**: Vite
+- **Deployment**: GitHub Pages
 
-Follow these steps:
+## 🏃‍♂️ Quick Start
 
-```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+### Prerequisites
+- Node.js 18+ 
+- npm or yarn
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+### Local Development
 
-# Step 3: Install the necessary dependencies.
-npm i
+1. **Clone the repository**
+   ```bash
+   git clone https://github.com/your-username/copilot-failure-insights.git
+   cd copilot-failure-insights
+   ```
 
-# Step 4: Start the development server with auto-reloading and an instant preview.
-npm run dev
+2. **Install dependencies**
+   ```bash
+   npm install
+   ```
+
+3. **Start development server**
+   ```bash
+   npm run dev
+   ```
+
+4. **Open in browser**
+   ```
+   http://localhost:8080
+   ```
+
+### Production Build
+
+```bash
+npm run build
+npm run preview
 ```
 
-**Edit a file directly in GitHub**
+## 📦 Deployment
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+### GitHub Pages (Automatic)
+- Push to `main` branch
+- GitHub Actions automatically builds and deploys
+- Live at: `https://your-username.github.io/copilot-failure-insights/`
 
-**Use GitHub Codespaces**
+### Manual Deployment
+```bash
+npm run deploy
+```
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
+## 🎯 Use Cases
 
-## What technologies are used for this project?
+### **For DevOps Teams**
+- Monitor Copilot reliability and performance
+- Identify recurring failure patterns
+- Track resolution times and operational metrics
 
-This project is built with:
+### **For Product Teams**
+- Understand user journey failure points
+- Prioritize feature improvements
+- Analyze tenant-specific issues
 
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+### **For Management**
+- Executive dashboards and reports
+- SLA compliance monitoring
+- Strategic decision support
 
-## How can I deploy this project?
+## 🔮 Future Enhancements
 
-Simply open [Lovable](https://lovable.dev/projects/dcf7e9bf-4338-4a5b-a60d-65bb34cf9d3f) and click on Share -> Publish.
+- **Real-time Data**: Integration with Azure Application Insights
+- **KQL Queries**: Dynamic Kusto query support
+- **Alerting**: Proactive failure notifications
+- **Machine Learning**: Automated root cause analysis
 
-## Can I connect a custom domain to my Lovable project?
+## 🤝 Contributing
 
-Yes, you can!
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Commit your changes (`git commit -m 'Add amazing feature'`)
+4. Push to the branch (`git push origin feature/amazing-feature`)
+5. Open a Pull Request
 
-To connect a domain, navigate to Project > Settings > Domains and click Connect Domain.
+## 📄 License
 
-Read more here: [Setting up a custom domain](https://docs.lovable.dev/tips-tricks/custom-domain#step-by-step-guide)
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Built with [shadcn/ui](https://ui.shadcn.com/) components
+- Charts powered by [Recharts](https://recharts.org/)
+- Icons from [Lucide React](https://lucide.dev/)
+
+---
+
+**Made with ❤️ for better Copilot insights**
