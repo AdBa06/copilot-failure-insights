@@ -109,6 +109,100 @@ Generated on: ${new Date().toLocaleDateString()}
     navigator.clipboard.writeText(text);
   };
 
+  const sendEmailReport = () => {
+    const totalFailures = failureLogs.length;
+    const criticalClusters = clusters.filter(c => c.severity === 'critical').length;
+    const resolvedClusters = clusters.filter(c => c.resolved).length;
+    
+    const topRootCause = clusters.reduce((acc, cluster) => {
+      acc[cluster.rootCause.category] = (acc[cluster.rootCause.category] || 0) + cluster.failureCount;
+      return acc;
+    }, {} as Record<string, number>);
+    
+    const primaryCause = Object.entries(topRootCause).sort(([,a], [,b]) => b - a)[0];
+
+    const emailSubject = `Microsoft Entra Copilot Failure Analysis Report - ${new Date().toLocaleDateString()}`;
+    
+    const emailBody = `Microsoft Entra Copilot Failure Analysis Report
+Generated on: ${new Date().toLocaleDateString()} at ${new Date().toLocaleTimeString()}
+
+EXECUTIVE SUMMARY
+================
+• Total Failures Analyzed: ${totalFailures.toLocaleString()}
+• Clusters Identified: ${clusters.length}
+• Critical Issues: ${criticalClusters}
+• Resolved Issues: ${resolvedClusters}
+• Primary Root Cause: ${primaryCause ? primaryCause[0] : 'N/A'} (${primaryCause ? primaryCause[1] : 0} failures)
+
+TOP CRITICAL ISSUES
+==================
+${clusters.filter(c => c.severity === 'critical').slice(0, 5).map((cluster, index) => `
+${index + 1}. ${cluster.name}
+   • Failures: ${cluster.failureCount}
+   • Root Cause: ${cluster.rootCause.description}
+   • Recommendation: ${cluster.recommendations[0]}
+   • Status: ${cluster.resolved ? 'Resolved' : 'Active'}
+`).join('')}
+
+IMMEDIATE ACTIONS REQUIRED
+=========================
+${clusters.filter(c => c.severity === 'critical' && !c.resolved).map(cluster => `
+• ${cluster.name}: ${cluster.recommendations[0]}
+`).join('')}
+
+TREND ANALYSIS
+==============
+• Increasing Issues: ${clusters.filter(c => c.trend === 'increasing').length} clusters
+• Stable Issues: ${clusters.filter(c => c.trend === 'stable').length} clusters
+• Decreasing Issues: ${clusters.filter(c => c.trend === 'decreasing').length} clusters
+
+For detailed analysis, please access the full dashboard at: ${window.location.href}
+
+---
+This report was generated automatically by the Microsoft Entra Copilot Failure Insights Dashboard.`;
+
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(emailSubject)}&body=${encodeURIComponent(emailBody)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  const shareLink = () => {
+    const currentUrl = window.location.href;
+    const shareData = {
+      title: 'Microsoft Entra Copilot Failure Analysis Dashboard',
+      text: `Check out this Copilot failure analysis dashboard with ${clusters.length} clusters and ${failureLogs.length} total failures. Critical issues: ${clusters.filter(c => c.severity === 'critical').length}`,
+      url: currentUrl
+    };
+
+    // Try to use Web Share API if available (mobile devices, some browsers)
+    if (navigator.share) {
+      navigator.share(shareData).catch((error) => {
+        console.log('Error sharing:', error);
+        // Fallback to copying link
+        copyLinkToClipboard(currentUrl);
+      });
+    } else {
+      // Fallback: copy link to clipboard
+      copyLinkToClipboard(currentUrl);
+    }
+  };
+
+  const copyLinkToClipboard = (url: string) => {
+    navigator.clipboard.writeText(url).then(() => {
+      // Show a temporary notification (you could enhance this with a toast)
+      alert('Dashboard link copied to clipboard!');
+    }).catch((error) => {
+      console.error('Failed to copy link:', error);
+      // Final fallback: select the URL text
+      const textArea = document.createElement('textarea');
+      textArea.value = url;
+      document.body.appendChild(textArea);
+      textArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textArea);
+      alert('Dashboard link copied to clipboard!');
+    });
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center gap-2">
@@ -172,11 +266,11 @@ Generated on: ${new Date().toLocaleDateString()}
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-2">
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={sendEmailReport}>
                 <Mail className="h-4 w-4 mr-2" />
                 Email Report
               </Button>
-              <Button variant="outline" size="sm">
+              <Button variant="outline" size="sm" onClick={shareLink}>
                 <Share className="h-4 w-4 mr-2" />
                 Share Link
               </Button>
