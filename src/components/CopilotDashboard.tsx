@@ -14,11 +14,13 @@ import { TrendChart } from './TrendChart';
 import { ExportPanel } from './ExportPanel';
 import { generateMockData, processFailureClusters } from '../utils/dataProcessor';
 import { FailureLog, ProcessedCluster } from '../types/copilot';
-import { AlertTriangle, TrendingUp, Database, Download, RefreshCw, Filter, Settings, AlertCircle, CheckCircle, Layers, FileText, FileSpreadsheet, ChevronDown } from 'lucide-react';
+import { AlertTriangle, TrendingUp, Database, Download, RefreshCw, Filter, Settings, AlertCircle, CheckCircle, Layers, FileText, FileSpreadsheet, ChevronDown, Wifi, WifiOff, CheckCircle2 } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import * as XLSX from 'xlsx';
 import jsPDF from 'jspdf';
 import html2canvas from 'html2canvas';
+import { mcpClient, MCPAnalyticsData } from '../services/mcpClient';
 
 const CopilotDashboard = () => {
   const [failureLogs, setFailureLogs] = useState<FailureLog[]>([]);
@@ -27,6 +29,10 @@ const CopilotDashboard = () => {
   const [timeRange, setTimeRange] = useState('7d');
   const [rootCauseFilter, setRootCauseFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [mcpConnected, setMcpConnected] = useState(false);
+  const [analyticsData, setAnalyticsData] = useState<MCPAnalyticsData | null>(null);
   
   // New state for filter and settings dialogs
   const [showFilterDialog, setShowFilterDialog] = useState(false);
@@ -48,31 +54,50 @@ const CopilotDashboard = () => {
   const [refreshInterval, setRefreshInterval] = useState(30); // seconds
   const [clusterThreshold, setClusterThreshold] = useState([3]);
 
+  // Check MCP connection status
   useEffect(() => {
-    // Initialize with mock data
-    const mockData = generateMockData();
-    setFailureLogs(mockData);
-    
-    // Process clusters with current threshold
-    const processedClusters = processFailureClusters(mockData, clusterThreshold[0]);
-    setClusters(processedClusters);
-    setLoading(false);
-  }, [clusterThreshold]);
+    const checkConnection = () => {
+      setMcpConnected(mcpClient.isServerConnected());
+    };
+
+    checkConnection();
+    const interval = setInterval(checkConnection, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Load initial data from MCP server
+  useEffect(() => {
+    if (mcpConnected) {
+      loadAnalyticsData();
+    }
+  }, [mcpConnected]);
 
   // Auto-refresh effect
   useEffect(() => {
-    if (!autoRefreshEnabled) return;
+    if (!autoRefreshEnabled || !mcpConnected) return;
     
     const interval = setInterval(() => {
-      // Refresh data
-      const mockData = generateMockData();
-      setFailureLogs(mockData);
-      const processedClusters = processFailureClusters(mockData, clusterThreshold[0]);
-      setClusters(processedClusters);
+      loadAnalyticsData(true);
     }, refreshInterval * 1000);
     
     return () => clearInterval(interval);
-  }, [autoRefreshEnabled, refreshInterval, clusterThreshold]);
+  }, [autoRefreshEnabled, refreshInterval, mcpConnected]);
+
+  const loadAnalyticsData = async (refresh = false) => {
+    try {
+      setLoading(true);
+      setError(null);
+      
+      const data = await mcpClient.getFailureAnalytics(refresh);
+      setAnalyticsData(data);
+      setClusters(data.clusters);
+      setFailureLogs(data.failureLogs);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load data');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredClusters = clusters.filter(cluster => {
     // Root cause filter
@@ -114,16 +139,10 @@ const CopilotDashboard = () => {
     // Settings are applied in real-time via state changes
   };
 
-  const handleRefresh = () => {
-    setLoading(true);
-    // Simulate loading time for better UX
-    setTimeout(() => {
-      const mockData = generateMockData();
-      setFailureLogs(mockData);
-      const processedClusters = processFailureClusters(mockData, clusterThreshold[0]);
-      setClusters(processedClusters);
-      setLoading(false);
-    }, 500);
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await loadAnalyticsData(true);
+    setRefreshing(false);
   };
 
   const exportToExcel = () => {
@@ -251,340 +270,224 @@ const CopilotDashboard = () => {
   const uniqueSkills = new Set(failureLogs.map(log => log.skillName)).size;
   const criticalClusters = clusters.filter(c => c.severity === 'critical').length;
 
-  return (
-    <div className="min-h-screen bg-gradient-to-br from-[#f0f7ff] to-[#e6f2ff]">
-      <div className="container mx-auto px-4 py-8">
-        <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6 mb-8">
-          <div className="flex justify-between items-center mb-6">
-            <div>
-              <h1 className="text-3xl font-semibold text-[#0078d4]">EntraLens</h1>
-              <p className="text-[#616161] mt-1">Failure Analysis Dashboard</p>
-            </div>
-            <div className="flex gap-4">
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white">
-                    <Download className="w-4 h-4 mr-2" />
-                    Export
-                    <ChevronDown className="w-4 h-4 ml-2" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end">
-                  <DropdownMenuItem onClick={exportToExcel}>
-                    <FileSpreadsheet className="w-4 h-4 mr-2" />
-                    Export to Excel
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={exportToPDF}>
-                    <FileText className="w-4 h-4 mr-2" />
-                    Export to PDF
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-              <Button 
-                className="bg-[#0078d4] hover:bg-[#106ebe]"
-                onClick={handleRefresh}
-                disabled={loading}
-              >
-                <RefreshCw className={`w-4 h-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
-                {loading ? 'Refreshing...' : 'Refresh'}
-              </Button>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
-            <div className="bg-gradient-to-br from-[#0078d4]/10 to-[#0078d4]/5 rounded-lg p-4 border border-[#e1e9f2]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#616161]">Total Failures</p>
-                  <h3 className="text-2xl font-semibold text-[#0078d4]">{totalFailures.toLocaleString()}</h3>
+  if (loading && !analyticsData) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-center min-h-96">
+            <div className="text-center space-y-4">
+              <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto"></div>
+              <div className="space-y-2">
+                <p className="text-lg font-semibold">Loading Copilot Analytics</p>
+                <div className="flex items-center justify-center gap-2 text-sm text-slate-600">
+                  {mcpConnected ? (
+                    <>
+                      <Wifi className="h-4 w-4 text-green-500" />
+                      <span>Connected to MCP Server</span>
+                    </>
+                  ) : (
+                    <>
+                      <WifiOff className="h-4 w-4 text-orange-500" />
+                      <span>Connecting to MCP Server...</span>
+                    </>
+                  )}
                 </div>
-                <div className="w-10 h-10 rounded-full bg-[#0078d4]/10 flex items-center justify-center">
-                  <AlertCircle className="w-5 h-5 text-[#0078d4]" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-[#107c10]/10 to-[#107c10]/5 rounded-lg p-4 border border-[#e1e9f2]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#616161]">Resolved</p>
-                  <h3 className="text-2xl font-semibold text-[#107c10]">{clusters.filter(c => c.resolved).length}</h3>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-[#107c10]/10 flex items-center justify-center">
-                  <CheckCircle className="w-5 h-5 text-[#107c10]" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-[#d13438]/10 to-[#d13438]/5 rounded-lg p-4 border border-[#e1e9f2]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#616161]">Critical</p>
-                  <h3 className="text-2xl font-semibold text-[#d13438]">{criticalClusters}</h3>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-[#d13438]/10 flex items-center justify-center">
-                  <AlertTriangle className="w-5 h-5 text-[#d13438]" />
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-[#0078d4]/10 to-[#0078d4]/5 rounded-lg p-4 border border-[#e1e9f2]">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-[#616161]">Active Clusters</p>
-                  <h3 className="text-2xl font-semibold text-[#0078d4]">{clusters.length}</h3>
-                </div>
-                <div className="w-10 h-10 rounded-full bg-[#0078d4]/10 flex items-center justify-center">
-                  <Layers className="w-5 h-5 text-[#0078d4]" />
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2">
-              <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-xl font-semibold text-[#323130]">Failure Clusters</h2>
-                  <div className="flex gap-2">
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white"
-                      onClick={() => setShowFilterDialog(true)}
-                    >
-                      <Filter className="w-4 h-4 mr-2" />
-                      Filter
-                    </Button>
-                    <Button 
-                      variant="outline" 
-                      size="sm" 
-                      className="border-[#0078d4] text-[#0078d4] hover:bg-[#0078d4] hover:text-white"
-                      onClick={() => setShowSettingsDialog(true)}
-                    >
-                      <Settings className="w-4 h-4 mr-2" />
-                      Settings
-                    </Button>
-                  </div>
-                </div>
-                <ClusterOverview 
-                  clusters={filteredClusters}
-                  onClusterSelect={setSelectedCluster}
-                  selectedCluster={selectedCluster}
-                />
-              </div>
-            </div>
-
-            <div className="space-y-6">
-              <div className="bg-white/80 backdrop-blur-sm rounded-lg shadow-sm border border-[#e1e9f2] p-6">
-                <h2 className="text-xl font-semibold text-[#323130] mb-4">Trend Analysis</h2>
-                <TrendChart clusters={clusters} timeRange={timeRange} />
               </div>
             </div>
           </div>
         </div>
       </div>
+    );
+  }
 
-      {/* Cluster Details Dialog */}
-      <Dialog open={!!selectedCluster} onOpenChange={() => setSelectedCluster(null)}>
-        <DialogContent className="max-w-4xl bg-white/95 backdrop-blur-sm">
-          <DialogHeader>
-            <DialogTitle className="text-[#0078d4]">Cluster Details</DialogTitle>
-          </DialogHeader>
-          {selectedCluster && <DrilldownPanel cluster={selectedCluster} onBack={() => setSelectedCluster(null)} />}
-        </DialogContent>
-      </Dialog>
-
-      {/* Filter Dialog */}
-      <Dialog open={showFilterDialog} onOpenChange={setShowFilterDialog}>
-        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-sm">
-          <DialogHeader>
-            <DialogTitle className="text-[#0078d4]">Filter Clusters</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6">
-            {/* Severity Filter */}
-            <div>
-              <Label className="text-base font-medium">Severity Levels</Label>
-              <div className="grid grid-cols-2 gap-4 mt-2">
-                {Object.entries(severityFilters).map(([severity, checked]) => (
-                  <div key={severity} className="flex items-center space-x-2">
-                    <Checkbox
-                      id={severity}
-                      checked={checked}
-                      onCheckedChange={(checked) =>
-                        setSeverityFilters(prev => ({
-                          ...prev,
-                          [severity]: checked as boolean
-                        }))
-                      }
-                    />
-                    <Label htmlFor={severity} className="capitalize">
-                      {severity}
-                    </Label>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Root Cause Filter */}
-            <div>
-              <Label className="text-base font-medium">Root Cause</Label>
-              <Select value={rootCauseFilter} onValueChange={setRootCauseFilter}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Categories</SelectItem>
-                  <SelectItem value="grounding">Grounding Issues</SelectItem>
-                  <SelectItem value="timeout">Timeout Errors</SelectItem>
-                  <SelectItem value="auth">Authentication</SelectItem>
-                  <SelectItem value="input">Input Validation</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Status Filter */}
-            <div>
-              <Label className="text-base font-medium">Status</Label>
-              <Select value={statusFilter} onValueChange={setStatusFilter}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">All Issues</SelectItem>
-                  <SelectItem value="active">Active Only</SelectItem>
-                  <SelectItem value="resolved">Resolved Only</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-
-            {/* Failure Count Range */}
-            <div>
-              <Label className="text-base font-medium">Failure Count Range</Label>
-              <div className="space-y-4 mt-2">
-                <div>
-                  <Label className="text-sm">Minimum: {minFailureCount[0]}</Label>
-                  <Slider
-                    value={minFailureCount}
-                    onValueChange={setMinFailureCount}
-                    max={100}
-                    min={1}
-                    step={1}
-                    className="mt-2"
-                  />
-                </div>
-                <div>
-                  <Label className="text-sm">Maximum: {maxFailureCount[0]}</Label>
-                  <Slider
-                    value={maxFailureCount}
-                    onValueChange={setMaxFailureCount}
-                    max={1000}
-                    min={10}
-                    step={10}
-                    className="mt-2"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex justify-between pt-4">
-              <Button variant="outline" onClick={handleResetFilters}>
-                Reset Filters
-              </Button>
-              <div className="flex gap-2">
-                <Button variant="outline" onClick={() => setShowFilterDialog(false)}>
-                  Cancel
-                </Button>
-                <Button onClick={handleApplyFilters}>
-                  Apply Filters
-                </Button>
-              </div>
-            </div>
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 to-blue-50 p-6">
+      <div className="max-w-7xl mx-auto space-y-6">
+        {/* Header with MCP Status */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-4xl font-bold text-slate-900 mb-2">
+              Microsoft Entra Copilot
+            </h1>
+            <p className="text-slate-600 text-lg">Failure Analysis Dashboard</p>
           </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Settings Dialog */}
-      <Dialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog}>
-        <DialogContent className="max-w-2xl bg-white/95 backdrop-blur-sm">
-          <DialogHeader>
-            <DialogTitle className="text-[#0078d4]">Dashboard Settings</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-6">
-            {/* Auto Refresh */}
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2">
-                <Checkbox
-                  id="autoRefresh"
-                  checked={autoRefreshEnabled}
-                  onCheckedChange={(checked) => setAutoRefreshEnabled(!!checked)}
-                />
-                <Label htmlFor="autoRefresh" className="text-base font-medium">
-                  Enable Auto Refresh
-                </Label>
-              </div>
-              
-              {autoRefreshEnabled && (
-                <div>
-                  <Label className="text-sm">Refresh Interval: {refreshInterval} seconds</Label>
-                  <Slider
-                    value={[refreshInterval]}
-                    onValueChange={(value) => setRefreshInterval(value[0])}
-                    max={300}
-                    min={10}
-                    step={10}
-                    className="mt-2"
-                  />
-                </div>
+          
+          <div className="flex items-center gap-4">
+            {/* MCP Connection Status */}
+            <div className="flex items-center gap-2">
+              {mcpConnected ? (
+                <>
+                  <CheckCircle2 className="h-5 w-5 text-green-500" />
+                  <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200">
+                    MCP Connected
+                  </Badge>
+                </>
+              ) : (
+                <>
+                  <AlertCircle className="h-5 w-5 text-orange-500" />
+                  <Badge variant="outline" className="bg-orange-50 text-orange-700 border-orange-200">
+                    MCP Connecting...
+                  </Badge>
+                </>
               )}
             </div>
 
-            {/* Cluster Threshold */}
-            <div>
-              <Label className="text-base font-medium">Cluster Threshold</Label>
-              <p className="text-sm text-gray-600 mt-1">
-                Minimum number of failures required to form a cluster
-              </p>
-              <div className="mt-2">
-                <Label className="text-sm">Threshold: {clusterThreshold[0]} failures</Label>
-                <Slider
-                  value={clusterThreshold}
-                  onValueChange={setClusterThreshold}
-                  max={20}
-                  min={2}
-                  step={1}
-                  className="mt-2"
+            {/* Last Updated */}
+            {analyticsData && (
+              <div className="text-sm text-slate-600">
+                Last updated: {new Date(analyticsData.lastUpdated).toLocaleTimeString()}
+              </div>
+            )}
+
+            {/* Refresh Button */}
+            <Button 
+              onClick={handleRefresh} 
+              disabled={refreshing || !mcpConnected}
+              className="flex items-center gap-2"
+            >
+              <RefreshCw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+              {refreshing ? 'Refreshing...' : 'Refresh'}
+            </Button>
+          </div>
+        </div>
+
+        {/* Error Alert */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>
+              {error}
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Enhanced Stats Cards with MCP Data */}
+        {analyticsData && (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+            <Card className="bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-blue-100">Total Failures (MCP)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{analyticsData.totalFailures.toLocaleString()}</div>
+                <p className="text-blue-200 text-sm mt-1">Analyzed from server</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-red-500 to-red-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-red-100">Critical Clusters</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{analyticsData.criticalClusters}</div>
+                <p className="text-red-200 text-sm mt-1">Require immediate attention</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-green-500 to-green-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-green-100">Resolved Issues</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{analyticsData.resolvedClusters}</div>
+                <p className="text-green-200 text-sm mt-1">Successfully addressed</p>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-gradient-to-r from-purple-500 to-purple-600 text-white">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-purple-100">Total Clusters</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-3xl font-bold">{clusters.length}</div>
+                <p className="text-purple-200 text-sm mt-1">Identified patterns</p>
+              </CardContent>
+            </Card>
+          </div>
+        )}
+
+        {/* Main Dashboard Tabs */}
+        <Tabs defaultValue="clusters" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="clusters">Cluster Analysis</TabsTrigger>
+            <TabsTrigger value="trends">Trend Analytics</TabsTrigger>
+            <TabsTrigger value="export">Export & Reports</TabsTrigger>
+            <TabsTrigger value="mcp-insights">MCP Insights</TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="clusters" className="space-y-6">
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+              <div className="xl:col-span-2">
+                <ClusterOverview 
+                  clusters={filteredClusters} 
+                  onClusterSelect={setSelectedCluster}
+                  selectedCluster={selectedCluster}
+                />
+              </div>
+              <div>
+                <DrilldownPanel 
+                  cluster={selectedCluster} 
+                  onBack={() => setSelectedCluster(null)}
                 />
               </div>
             </div>
+          </TabsContent>
 
-            {/* Time Range Default */}
-            <div>
-              <Label className="text-base font-medium">Default Time Range</Label>
-              <Select value={timeRange} onValueChange={setTimeRange}>
-                <SelectTrigger className="mt-2">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1d">Last 24 Hours</SelectItem>
-                  <SelectItem value="7d">Last 7 Days</SelectItem>
-                  <SelectItem value="30d">Last 30 Days</SelectItem>
-                  <SelectItem value="90d">Last 90 Days</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <TabsContent value="trends">
+            <TrendChart clusters={clusters} timeRange="7d" />
+          </TabsContent>
 
-            <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setShowSettingsDialog(false)}>
-                Cancel
-              </Button>
-              <Button onClick={handleSaveSettings}>
-                Save Settings
-              </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
+          <TabsContent value="export">
+            <ExportPanel clusters={clusters} failureLogs={failureLogs} />
+          </TabsContent>
+
+          {/* New MCP Insights Tab */}
+          <TabsContent value="mcp-insights" className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Wifi className="h-5 w-5 text-blue-600" />
+                  MCP Server Insights
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Connection Details</h4>
+                    <div className="text-sm space-y-1">
+                      <p>Status: <Badge variant={mcpConnected ? 'default' : 'secondary'}>
+                        {mcpClient.getConnectionStatus()}
+                      </Badge></p>
+                      <p>Data Source: MCP Server v1.0.0</p>
+                      <p>Protocol: Model Context Protocol</p>
+                    </div>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <h4 className="font-semibold">Server Capabilities</h4>
+                    <div className="text-sm space-y-1">
+                      <p>✅ Real-time failure analytics</p>
+                      <p>✅ AI-powered recommendations</p>
+                      <p>✅ Trend analysis</p>
+                      <p>🔄 Ready for Kusto integration</p>
+                    </div>
+                  </div>
+                </div>
+
+                {analyticsData && (
+                  <Alert>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      <strong>MCP Enhancement Active:</strong> Data is now flowing through the Model Context Protocol server, 
+                      enabling enhanced AI analysis, real-time updates, and future integration with Azure Data Explorer (Kusto).
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+                 </Tabs>
+      </div>
     </div>
   );
 };

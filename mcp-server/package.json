@@ -1,0 +1,19 @@
+{
+  "name": "copilot-failure-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for Copilot Failure Analysis Data",
+  "type": "module",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/index.js",
+    "dev": "tsc --watch & node --watch dist/index.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^0.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.5.0"
+  }
+} 
